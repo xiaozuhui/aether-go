@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	aether "github.com/xiaozuhui/aether/bindings/go"
+	aether "github.com/xiaozuhui/aether-go"
 )
 
 func main() {

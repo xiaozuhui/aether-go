@@ -2,6 +2,43 @@
 
 Aether DSL 语言的 Go 语言绑定。
 
+## 安装
+
+\`\`\`bash
+go get github.com/xiaozuhui/aether-go@latest
+\`\`\`
+
+### 构建依赖
+
+此包需要 Aether Rust 库。有两种方式获取：
+
+**方式 1: 自动下载预编译库（推荐）**
+
+\`\`\`bash
+# 运行下载脚本
+./scripts/fetch-lib.sh
+\`\`\`
+
+**方式 2: 从源码构建**
+
+\`\`\`bash
+# 克隆 Aether 仓库
+git clone https://github.com/xiaozuhui/aether.git
+cd aether
+cargo build --release
+\`\`\`
+
+### 快速安装
+
+如果你已经有 Rust 工具链：
+
+\`\`\`bash
+# 一键安装
+go get github.com/xiaozuhui/aether-go@latest && \
+cd $(go env GOPATH)/pkg/mod/github.com/xiaozuhui/aether-go@* && \
+./scripts/fetch-lib.sh
+\`\`\`
+
 ## 特性
 
 ✅ **线程安全**: 完全的并发安全,使用 `sync.RWMutex` 保护
@@ -11,22 +48,6 @@ Aether DSL 语言的 Go 语言绑定。
 ✅ **缓存控制**: AST 缓存与统计
 ✅ **优化**: 可配置的优化选项
 ✅ **易于集成**: 简洁、符合 Go 习惯的 API
-
-## 安装
-
-首先,构建 Aether 库:
-
-```bash
-cd ../..
-cargo build --release
-```
-
-然后,使用 Go 绑定:
-
-```bash
-cd bindings/go
-go mod tidy
-```
 
 ## 快速开始
 
@@ -294,18 +315,34 @@ wg.Wait()
 
 - `Close()`: 释放引擎资源(幂等)
 
-## 构建
+## 构建和测试
 
-Go 绑定需要先构建 Aether 库:
+### 从源码构建
 
 ```bash
-# 构建 Aether 库
+# 构建 Rust 库（在主仓库）
 cd ../..
 cargo build --release
+
+# 复制库文件到 libs 目录
+cp target/release/libaether.a bindings/go/libs/$(go env GOOS)-$(go env GOARCH)/
 
 # 运行 Go 测试
 cd bindings/go
 go test -v
+```
+
+### 运行测试
+
+```bash
+# 运行所有测试
+make test
+
+# 运行基准测试
+make benchmark
+
+# 运行示例
+make example
 ```
 
 ## 示例
@@ -366,3 +403,39 @@ content, err := engine.Eval(`READ_FILE("/tmp/data.txt")`)
 ## 许可证
 
 Apache-2.0
+
+## 发布指南
+
+### 版本发布
+
+1. 更新代码并提交:
+   \`\`\`bash
+   git add .
+   git commit -m "描述你的更改"
+   git push origin main
+   \`\`\`
+
+2. 创建版本标签:
+   \`\`\`bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   \`\`\`
+
+3. 验证发布:
+   - 访问 https://pkg.go.dev/github.com/xiaozuhui/aether-go
+   - 等待几分钟后，Go Module Proxy 会自动索引
+
+### 用户安装
+
+发布后，用户可以通过以下方式安装:
+
+\`\`\`bash
+# 获取最新版本
+go get github.com/xiaozuhui/aether-go@latest
+
+# 获取特定版本
+go get github.com/xiaozuhui/aether-go@v1.0.0
+\`\`\`
+
+详细的发布指南请参考 [RELEASE.md](RELEASE.md)
+

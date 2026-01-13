@@ -1,3 +1,3 @@
-module github.com/xiaozuhui/go-aether
+module github.com/xiaozuhui/aether-go
 
 go 1.21

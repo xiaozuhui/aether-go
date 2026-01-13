@@ -44,7 +44,11 @@
 package aether
 
 /*
-#cgo LDFLAGS: -L${SRCDIR}/../../target/release -laether -ldl -lm -lpthread
+#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/libs/darwin-arm64 -laether -ldl -lm -lpthread
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/libs/darwin-amd64 -laether -ldl -lm -lpthread
+#cgo linux,arm64 LDFLAGS: -L${SRCDIR}/libs/linux-arm64 -laether -ldl -lm -lpthread
+#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux-amd64 -laether -ldl -lm -lpthread
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs/windows-amd64 -laether -ldl -lm -lpthread
 #cgo darwin LDFLAGS: -framework Security -framework CoreFoundation
 #include <stdlib.h>
 

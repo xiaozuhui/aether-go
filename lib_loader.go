@@ -1,10 +1,5 @@
 package aether
 
-/*
-#cgo LDFLAGS: -L${AETHER_LIB_DIR} -laether
-#cgo darwin LDFLAGS: -framework Security -framework CoreFoundation
-*/
-import "C"
 import (
 	"fmt"
 	"os"
@@ -12,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"syscall"
+	"unsafe"
 )
 
 // 自动下载预编译库
@@ -19,7 +15,7 @@ func init() {
 	if err := ensureLibrary(); err != nil {
 		// 不要在 init 中 panic,只记录警告
 		fmt.Fprintf(os.Stderr, "警告: %v\n", err)
-		fmt.Fprintf(os.Stderr, "请运行: go run github.com/xiaozuhui/go-aether/scripts/fetch-lib.sh\n")
+		fmt.Fprintf(os.Stderr, "请运行: ./scripts/fetch-lib.sh\n")
 	}
 }
 
@@ -197,7 +193,7 @@ func EnsureLibraryError() error {
 
 	libDir, err := getLibDir()
 	if err != nil {
-		return fmt.Errorf("库未初始化: %w\n解决方法:\n1. 运行: go run github.com/xiaozuhui/go-aether/scripts/fetch-lib.sh\n2. 或从源码编译: git clone https://github.com/xiaozuhui/aether.git && cd aether && cargo build --release", err)
+		return fmt.Errorf("库未初始化: %w\n解决方法:\n1. 运行: ./scripts/fetch-lib.sh\n2. 或从源码编译: git clone https://github.com/xiaozuhui/aether.git && cd aether && cargo build --release", err)
 	}
 
 	libFile := filepath.Join(libDir, "libaether.a")
