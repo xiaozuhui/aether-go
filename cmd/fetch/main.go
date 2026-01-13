@@ -22,18 +22,22 @@ func main() {
 }
 
 func fetchLibrary() error {
-	// 这里调用包内的下载函数
-	// 由于这是一个独立的命令行工具，我们需要直接实现下载逻辑
-
-	// TODO: 实现实际的下载逻辑
-	// 可以将 lib_loader.go 中的 FetchLibrary 逻辑移到这里
-	// 或者创建一个包级别的下载函数
-
 	fmt.Println("检测平台...")
 
 	// 检测当前平台
 	platform := detectPlatform()
 	fmt.Printf("平台: %s\n", platform)
+
+	// 检查是否为 macOS 平台
+	if !isMacOS(platform) {
+		fmt.Printf("\n注意: 当前仅提供 macOS 平台的预编译库。\n")
+		fmt.Printf("其他平台需要从源码编译 Aether Rust 库。\n")
+		fmt.Printf("\n编译步骤:\n")
+		fmt.Printf("  1. 克隆 Aether 仓库: git clone https://github.com/xiaozuhui/aether.git\n")
+		fmt.Printf("  2. 构建 Rust 库: cd aether && cargo build --release\n")
+		fmt.Printf("  3. 复制库文件: mkdir -p lib/ && cp target/release/libaether.a lib/\n")
+		return fmt.Errorf("不支持的平台: %s (仅支持 macOS)", platform)
+	}
 
 	// 创建 lib 目录
 	libDir := "lib"
@@ -41,14 +45,13 @@ func fetchLibrary() error {
 		return fmt.Errorf("无法创建 lib 目录: %w", err)
 	}
 
-	// 构建 URL
-	libName := "libaether.a"
-	if platform == "windows-amd64" {
-		libName = "aether.lib"
-	}
+	// 构建下载文件名（包含架构信息）
+	// 文件名格式: libaether-darwin-arm64.a 或 libaether-darwin-amd64.a
+	libName := fmt.Sprintf("libaether-%s.a", platform)
+	url := fmt.Sprintf("https://github.com/xiaozuhui/aether-go/releases/latest/download/%s", libName)
 
-	url := fmt.Sprintf("https://github.com/xiaozuhui/aether-go/releases/latest/download/%s/%s", platform, libName)
-	outputFile := fmt.Sprintf("%s/%s", libDir, libName)
+	// 本地保存路径（统一命名为 libaether.a）
+	outputFile := fmt.Sprintf("%s/libaether.a", libDir)
 
 	// 检查是否已存在
 	if _, err := os.Stat(outputFile); err == nil {
@@ -84,6 +87,10 @@ func detectPlatform() string {
 	}
 
 	return fmt.Sprintf("%s-%s", os, arch)
+}
+
+func isMacOS(platform string) bool {
+	return platform == "darwin-amd64" || platform == "darwin-arm64"
 }
 
 func downloadFile(url, outputFile string) error {

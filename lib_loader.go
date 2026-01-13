@@ -10,18 +10,12 @@ import (
 	"unsafe"
 )
 
-// 自动检查预编译库
+// 自动检查预编译库（静默检查，不打印警告）
+// 库文件缺失时，CGO 链接阶段会自动报错
 func init() {
-	if !IsLibraryAvailable() {
-		// 不在 init 中自动下载，而是提供清晰的安装指引
-		fmt.Fprintf(os.Stderr, "\n⚠️  Aether 库文件未找到\n\n")
-		fmt.Fprintf(os.Stderr, "请运行以下命令下载预编译库：\n\n")
-		fmt.Fprintf(os.Stderr, "  go run github.com/xiaozuhui/aether-go/cmd/fetch@latest\n\n")
-		fmt.Fprintf(os.Stderr, "或者从源码构建：\n")
-		fmt.Fprintf(os.Stderr, "  git clone https://github.com/xiaozuhui/aether.git\n")
-		fmt.Fprintf(os.Stderr, "  cd aether && cargo build --release\n")
-		fmt.Fprintf(os.Stderr, "  cp target/release/libaether.a <your-project>/lib/\n\n")
-	}
+	// 不再在 init 中打印警告
+	// 如果库文件真的缺失，CGO 链接时会给出明确的错误信息
+	_ = IsLibraryAvailable()
 }
 
 // getLibDir 获取库文件目录
@@ -67,6 +61,11 @@ func detectPlatform() string {
 	return fmt.Sprintf("%s-%s", os, arch)
 }
 
+// isMacOS 检查是否为 macOS 平台
+func isMacOS(platform string) bool {
+	return len(platform) >= 6 && platform[:6] == "darwin"
+}
+
 // ensureLibrary 确保库文件存在
 func ensureLibrary() error {
 	libDir, err := getLibDir()
@@ -91,6 +90,14 @@ func ensureLibrary() error {
 
 // FetchLibrary 下载预编译库
 func FetchLibrary() error {
+	// 检测平台
+	platform := detectPlatform()
+
+	// 检查是否为 macOS 平台
+	if !isMacOS(platform) {
+		return fmt.Errorf("当前仅提供 macOS 平台的预编译库。其他平台需要从源码编译")
+	}
+
 	// 查找项目根目录
 	moduleRoot := findModuleRoot()
 	libDir := filepath.Join(moduleRoot, "lib")
@@ -100,18 +107,13 @@ func FetchLibrary() error {
 		return fmt.Errorf("无法创建 lib 目录: %w", err)
 	}
 
-	// 检测平台
-	platform := detectPlatform()
+	// 构建下载文件名（包含架构信息）
+	// 文件名格式: libaether-darwin-arm64.a 或 libaether-darwin-amd64.a
+	libName := fmt.Sprintf("libaether-%s.a", platform)
+	url := fmt.Sprintf("https://github.com/xiaozuhui/aether-go/releases/latest/download/%s", libName)
 
-	// 构建 URL
-	libName := "libaether.a"
-	if platform == "windows-amd64" {
-		libName = "aether.lib"
-	}
-
-	// 下载最新版本的库
-	url := fmt.Sprintf("https://github.com/xiaozuhui/aether-go/releases/latest/download/%s/%s", platform, libName)
-	outputFile := filepath.Join(libDir, libName)
+	// 本地保存路径（统一命名为 libaether.a）
+	outputFile := filepath.Join(libDir, "libaether.a")
 
 	// 检查是否已存在
 	if _, err := os.Stat(outputFile); err == nil {
@@ -136,22 +138,42 @@ func FetchLibrary() error {
 
 // findModuleRoot 查找模块根目录
 func findModuleRoot() string {
-	// 从当前文件路径向上查找 go.mod
-	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	// 方法1: 从当前工作目录向上查找 go.mod（适用于用户项目）
+	if wd, err := os.Getwd(); err == nil {
+		dir := wd
+		for {
+			if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+				return dir
+			}
 
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				// 到达根目录
+				break
+			}
+			dir = parent
 		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			// 到达根目录
-			break
-		}
-		dir = parent
 	}
 
+	// 方法2: 从当前包的文件路径查找（适用于模块缓存）
+	_, filename, _, ok := runtime.Caller(0)
+	if ok {
+		dir := filepath.Dir(filename)
+		for {
+			if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+				return dir
+			}
+
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				// 到达根目录
+				break
+			}
+			dir = parent
+		}
+	}
+
+	// 如果都找不到，返回当前目录
 	return "."
 }
 

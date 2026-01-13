@@ -12,6 +12,8 @@ go get github.com/xiaozuhui/aether-go@latest
 
 ### 2. 下载预编译库
 
+#### macOS 用户
+
 首次使用时，在你的项目目录中运行以下命令下载预编译库：
 
 ```bash
@@ -20,11 +22,33 @@ go run github.com/xiaozuhui/aether-go/cmd/fetch@latest
 
 该命令会：
 
-- 自动检测你的操作系统和架构
+- 自动检测你的 macOS 架构（Apple Silicon 或 Intel）
 - 从 GitHub Releases 下载对应的预编译库
 - 将库文件保存到项目的 `lib/` 目录
 
-下载完成后，即可在代码中使用 aether-go。
+支持的平台：
+
+- macOS (Apple Silicon - arm64)
+- macOS (Intel - amd64)
+
+#### 其他平台用户
+
+目前仅提供 macOS 平台的预编译库。如果你使用 Linux 或 Windows，需要从源码编译 Aether Rust 库：
+
+```bash
+# 1. 克隆 Aether 仓库
+git clone https://github.com/xiaozuhui/aether.git
+cd aether
+
+# 2. 构建 Rust 库
+cargo build --release
+
+# 3. 复制到你的 Go 项目
+mkdir -p lib/
+cp target/release/libaether.a /path/to/your/project/lib/
+```
+
+下载或编译完成后，即可在代码中使用 aether-go。
 
 ### 3. 在代码中使用
 
@@ -47,38 +71,37 @@ func main() {
 
 此包需要 Aether Rust 静态库（libaether.a 文件）。有两种方式获取：
 
-### 方式 1: 使用 fetch 工具（推荐）
+### 方式 1: 使用 fetch 工具（推荐，仅限 macOS）
 
 ```bash
 go run github.com/xiaozuhui/aether-go/cmd/fetch@latest
 ```
 
-支持的平台：
+**支持的平台：**
 
-- macOS (Apple Silicon & Intel)
-- Linux (x86_64)
-- Windows (x86_64)
+- ✅ macOS (Apple Silicon - arm64)
+- ✅ macOS (Intel - amd64)
+- ❌ Linux (需要自行编译)
+- ❌ Windows (需要自行编译)
 
 ### 方式 2: 从源码构建
 
-如果预编译库不可用，可以从源码构建：
+如果你使用 Linux 或 Windows，或者想要自定义编译选项，可以从源码构建：
 
 ```bash
-
 # 克隆 Aether 仓库
-
-git clone <https://github.com/xiaozuhui/aether.git>
+git clone https://github.com/xiaozuhui/aether.git
 cd aether
 
 # 构建 Rust 库
-
 cargo build --release
 
 # 复制到项目 lib 目录
-
 mkdir -p lib/
 cp target/release/libaether.a lib/
 ```
+
+**注意：** Windows 系统构建的文件名通常是 `aether.lib` 而不是 `libaether.a`。
 
 ## 特性
 
