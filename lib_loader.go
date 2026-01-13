@@ -10,12 +10,17 @@ import (
 	"unsafe"
 )
 
-// 自动下载预编译库
+// 自动检查预编译库
 func init() {
-	if err := ensureLibrary(); err != nil {
-		// 不要在 init 中 panic,只记录警告
-		fmt.Fprintf(os.Stderr, "警告: %v\n", err)
-		fmt.Fprintf(os.Stderr, "请运行: ./scripts/fetch-lib.sh\n")
+	if !IsLibraryAvailable() {
+		// 不在 init 中自动下载，而是提供清晰的安装指引
+		fmt.Fprintf(os.Stderr, "\n⚠️  Aether 库文件未找到\n\n")
+		fmt.Fprintf(os.Stderr, "请运行以下命令下载预编译库：\n\n")
+		fmt.Fprintf(os.Stderr, "  go run github.com/xiaozuhui/aether-go/cmd/fetch@latest\n\n")
+		fmt.Fprintf(os.Stderr, "或者从源码构建：\n")
+		fmt.Fprintf(os.Stderr, "  git clone https://github.com/xiaozuhui/aether.git\n")
+		fmt.Fprintf(os.Stderr, "  cd aether && cargo build --release\n")
+		fmt.Fprintf(os.Stderr, "  cp target/release/libaether.a <your-project>/lib/\n\n")
 	}
 }
 
@@ -26,42 +31,22 @@ func getLibDir() (string, error) {
 		return dir, nil
 	}
 
-	// 检测平台
-	platform := detectPlatform()
+	// 查找项目根目录（包含 go.mod 的目录）
+	moduleRoot := findModuleRoot()
 
-	// 查找已下载的库
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("无法获取用户目录: %w", err)
-	}
+	// 使用项目内的 lib 目录
+	libDir := filepath.Join(moduleRoot, "lib")
 
-	libBaseDir := filepath.Join(homeDir, ".aether", "lib", platform)
-
-	// 查找最新的版本目录
-	entries, err := os.ReadDir(libBaseDir)
-	if err != nil {
+	// 检查库文件是否存在
+	libFile := filepath.Join(libDir, "libaether.a")
+	if _, err := os.Stat(libFile); err != nil {
 		if os.IsNotExist(err) {
-			// 目录不存在,需要下载
-			return "", fmt.Errorf("库文件未下载,请运行: ./scripts/fetch-lib.sh")
+			return "", fmt.Errorf("库文件未下载,请运行: go run github.com/xiaozuhui/aether-go/cmd/fetch@latest")
 		}
-		return "", fmt.Errorf("无法读取库目录: %w", err)
+		return "", fmt.Errorf("无法访问库目录: %w", err)
 	}
 
-	// 找到最新的版本目录
-	var latestVersion string
-	for _, entry := range entries {
-		if entry.IsDir() && len(entry.Name()) > 0 && entry.Name()[0] == 'v' {
-			if latestVersion == "" || entry.Name() > latestVersion {
-				latestVersion = entry.Name()
-			}
-		}
-	}
-
-	if latestVersion == "" {
-		return "", fmt.Errorf("未找到已下载的库文件,请运行: ./scripts/fetch-lib.sh")
-	}
-
-	return filepath.Join(libBaseDir, latestVersion), nil
+	return libDir, nil
 }
 
 // detectPlatform 检测当前平台
@@ -105,27 +90,48 @@ func ensureLibrary() error {
 }
 
 // FetchLibrary 下载预编译库
-func FetchLibrary(version string) error {
-	// 查找脚本
-	scriptPath := filepath.Join(findModuleRoot(), "scripts", "fetch-lib.sh")
+func FetchLibrary() error {
+	// 查找项目根目录
+	moduleRoot := findModuleRoot()
+	libDir := filepath.Join(moduleRoot, "lib")
 
-	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		return fmt.Errorf("下载脚本不存在: %s", scriptPath)
+	// 创建 lib 目录
+	if err := os.MkdirAll(libDir, 0755); err != nil {
+		return fmt.Errorf("无法创建 lib 目录: %w", err)
 	}
 
-	// 构建命令
-	cmd := exec.Command(scriptPath)
-	if version != "" && version != "latest" {
-		cmd.Args = append(cmd.Args, "-v", version)
+	// 检测平台
+	platform := detectPlatform()
+
+	// 构建 URL
+	libName := "libaether.a"
+	if platform == "windows-amd64" {
+		libName = "aether.lib"
 	}
 
-	// 设置标准输入输出
+	// 下载最新版本的库
+	url := fmt.Sprintf("https://github.com/xiaozuhui/aether-go/releases/latest/download/%s/%s", platform, libName)
+	outputFile := filepath.Join(libDir, libName)
+
+	// 检查是否已存在
+	if _, err := os.Stat(outputFile); err == nil {
+		fmt.Printf("库文件已存在: %s\n", outputFile)
+		return nil
+	}
+
+	// 下载文件
+	fmt.Printf("正在从 %s 下载...\n", url)
+	cmd := exec.Command("curl", "-L", "-f", "--progress-bar", url, "-o", outputFile)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// 运行脚本
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("下载失败: %w\n请检查网络连接或手动下载: %s", err, url)
+	}
+
+	fmt.Printf("\n库文件已下载到: %s\n", outputFile)
+	return nil
 }
 
 // findModuleRoot 查找模块根目录
@@ -151,23 +157,23 @@ func findModuleRoot() string {
 
 // GetLibraryInfo 获取库文件信息
 func GetLibraryInfo() map[string]interface{} {
-	libDir, err := getLibDir()
-	if err != nil {
-		return map[string]interface{}{
-			"error": err.Error(),
-		}
-	}
+	moduleRoot := findModuleRoot()
+	libDir := filepath.Join(moduleRoot, "lib")
+	libFile := filepath.Join(libDir, "libaether.a")
 
 	info := map[string]interface{}{
 		"lib_dir": libDir,
 		"platform": detectPlatform(),
 	}
 
-	// 获取库文件大小
-	libFile := filepath.Join(libDir, "libaether.a")
+	// 检查库文件是否存在
 	if fi, err := os.Stat(libFile); err == nil {
 		info["size"] = fi.Size()
 		info["modified"] = fi.ModTime()
+		info["exists"] = true
+	} else {
+		info["exists"] = false
+		info["error"] = err.Error()
 	}
 
 	return info
@@ -191,15 +197,13 @@ func EnsureLibraryError() error {
 		return nil
 	}
 
-	libDir, err := getLibDir()
-	if err != nil {
-		return fmt.Errorf("库未初始化: %w\n解决方法:\n1. 运行: ./scripts/fetch-lib.sh\n2. 或从源码编译: git clone https://github.com/xiaozuhui/aether.git && cd aether && cargo build --release", err)
-	}
-
+	moduleRoot := findModuleRoot()
+	libDir := filepath.Join(moduleRoot, "lib")
 	libFile := filepath.Join(libDir, "libaether.a")
+
 	if _, err := os.Stat(libFile); err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("库文件不存在: %s\n解决方法: 运行 ./scripts/fetch-lib.sh", libFile)
+			return fmt.Errorf("库文件不存在: %s\n解决方法: 运行 go run github.com/xiaozuhui/aether-go/cmd/fetch@latest", libFile)
 		}
 		return fmt.Errorf("无法访问库文件: %w", err)
 	}

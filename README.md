@@ -4,40 +4,81 @@ Aether DSL 语言的 Go 语言绑定。
 
 ## 安装
 
-\`\`\`bash
+### 1. 安装 Go 模块
+
+```bash
 go get github.com/xiaozuhui/aether-go@latest
-\`\`\`
+```
 
-### 构建依赖
+### 2. 下载预编译库
 
-此包需要 Aether Rust 库。有两种方式获取：
+首次使用时，在你的项目目录中运行以下命令下载预编译库：
 
-**方式 1: 自动下载预编译库（推荐）**
+```bash
+go run github.com/xiaozuhui/aether-go/cmd/fetch@latest
+```
 
-\`\`\`bash
-# 运行下载脚本
-./scripts/fetch-lib.sh
-\`\`\`
+该命令会：
 
-**方式 2: 从源码构建**
+- 自动检测你的操作系统和架构
+- 从 GitHub Releases 下载对应的预编译库
+- 将库文件保存到项目的 `lib/` 目录
 
-\`\`\`bash
+下载完成后，即可在代码中使用 aether-go。
+
+### 3. 在代码中使用
+
+```go
+import aether "github.com/xiaozuhui/aether-go"
+
+func main() {
+    engine := aether.New()
+    defer engine.Close()
+
+    result, err := engine.Eval("Set X 10\n(X + 20)")
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println(result) // 30
+}
+```
+
+## 构建依赖说明
+
+此包需要 Aether Rust 静态库（libaether.a 文件）。有两种方式获取：
+
+### 方式 1: 使用 fetch 工具（推荐）
+
+```bash
+go run github.com/xiaozuhui/aether-go/cmd/fetch@latest
+```
+
+支持的平台：
+
+- macOS (Apple Silicon & Intel)
+- Linux (x86_64)
+- Windows (x86_64)
+
+### 方式 2: 从源码构建
+
+如果预编译库不可用，可以从源码构建：
+
+```bash
+
 # 克隆 Aether 仓库
-git clone https://github.com/xiaozuhui/aether.git
+
+git clone <https://github.com/xiaozuhui/aether.git>
 cd aether
+
+# 构建 Rust 库
+
 cargo build --release
-\`\`\`
 
-### 快速安装
+# 复制到项目 lib 目录
 
-如果你已经有 Rust 工具链：
-
-\`\`\`bash
-# 一键安装
-go get github.com/xiaozuhui/aether-go@latest && \
-cd $(go env GOPATH)/pkg/mod/github.com/xiaozuhui/aether-go@* && \
-./scripts/fetch-lib.sh
-\`\`\`
+mkdir -p lib/
+cp target/release/libaether.a lib/
+```
 
 ## 特性
 
@@ -324,8 +365,9 @@ wg.Wait()
 cd ../..
 cargo build --release
 
-# 复制库文件到 libs 目录
-cp target/release/libaether.a bindings/go/libs/$(go env GOOS)-$(go env GOARCH)/
+# 复制库文件到 lib 目录
+mkdir -p lib/
+cp target/release/libaether.a lib/
 
 # 运行 Go 测试
 cd bindings/go
@@ -402,40 +444,44 @@ content, err := engine.Eval(`READ_FILE("/tmp/data.txt")`)
 
 ## 许可证
 
-Apache-2.0
+GPL-3.0
 
 ## 发布指南
 
 ### 版本发布
 
 1. 更新代码并提交:
-   \`\`\`bash
+
+   ```bash
    git add .
    git commit -m "描述你的更改"
    git push origin main
-   \`\`\`
+   ```
 
 2. 创建版本标签:
-   \`\`\`bash
+
+   ```bash
    git tag v1.0.0
    git push origin v1.0.0
-   \`\`\`
+   ```
 
 3. 验证发布:
-   - 访问 https://pkg.go.dev/github.com/xiaozuhui/aether-go
+   - 访问 <https://pkg.go.dev/github.com/xiaozuhui/aether-go>
    - 等待几分钟后，Go Module Proxy 会自动索引
 
 ### 用户安装
 
 发布后，用户可以通过以下方式安装:
 
-\`\`\`bash
+```bash
+
 # 获取最新版本
+
 go get github.com/xiaozuhui/aether-go@latest
 
 # 获取特定版本
+
 go get github.com/xiaozuhui/aether-go@v1.0.0
-\`\`\`
+```
 
 详细的发布指南请参考 [RELEASE.md](RELEASE.md)
-
